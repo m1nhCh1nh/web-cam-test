@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ứng Dụng Webcam</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .video-container {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        #video {
+            border: 3px solid #333;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 640px;
+        }
+        #canvas {
+            display: none;
+        }
+        #photo {
+            border: 3px solid #333;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 640px;
+            margin-top: 20px;
+        }
+        .button-container {
+            margin: 20px 0;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .image-gallery {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .gallery-item {
+            margin: 10px;
+            width: 150px;
+        }
+        .gallery-item img {
+            width: 100%;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+        .status {
+            margin: 10px 0;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ứng Dụng Chụp Ảnh Webcam</h1>
+    
+    <div class="container">
+        <div class="video-container">
+            <video id="video" autoplay playsinline></video>
+        </div>
+        
+        <div class="button-container">
+            <button id="startCamera">Bật Camera</button>
+            <button id="takePhoto" disabled>Chụp Ảnh</button>
+            <button id="savePhoto" disabled>Lưu Ảnh</button>
+        </div>
+        
+        <div class="status" id="status"></div>
+        
+        <canvas id="canvas"></canvas>
+        <img id="photo" alt="Ảnh đã chụp" style="display:none">
+        
+        <h2>Thư Viện Ảnh</h2>
+        <div class="image-gallery" id="gallery"></div>
+    </div>
+
+    <script>
+        // Các biến toàn cục
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const photo = document.getElementById('photo');
+        const startButton = document.getElementById('startCamera');
+        const takePhotoButton = document.getElementById('takePhoto');
+        const savePhotoButton = document.getElementById('savePhoto');
+        const statusElement = document.getElementById('status');
+        const gallery = document.getElementById('gallery');
+        
+        const constraints = {
+            video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: 'user'
+            }
+        };
+        
+        let stream = null;
+        
+        // Khởi động camera
+        startButton.addEventListener('click', async () => {
+            try {
+                statusElement.textContent = "Đang kết nối camera...";
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                startButton.disabled = true;
+                takePhotoButton.disabled = false;
+                statusElement.textContent = "Camera đã sẵn sàng. Bạn có thể chụp ảnh.";
+            } catch (err) {
+                console.error("Lỗi truy cập camera: ", err);
+                statusElement.textContent = "Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.";
+            }
+        });
+        
+        // Chụp ảnh
+        takePhotoButton.addEventListener('click', () => {
+            if (stream) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                const context = canvas.getContext('2d');
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                const data = canvas.toDataURL('image/png');
+                photo.setAttribute('src', data);
+                photo.style.display = 'block';
+                
+                savePhotoButton.disabled = false;
+                statusElement.textContent = "Đã chụp ảnh! Bạn có thể lưu ảnh này.";
+            }
+        });
+        
+        // Lưu ảnh vào thư viện
+        savePhotoButton.addEventListener('click', () => {
+            const img = document.createElement('img');
+            img.src = photo.src;
+            
+            const galleryItem = document.createElement('div');
+            galleryItem.className = 'gallery-item';
+            galleryItem.appendChild(img);
+            
+            // Thêm nút tải xuống
+            const downloadLink = document.createElement('a');
+            downloadLink.href = photo.src;
+            downloadLink.download = 'webcam-image-' + new Date().getTime() + '.png';
+            downloadLink.textContent = 'Tải xuống';
+            downloadLink.className = 'download-link';
+            galleryItem.appendChild(downloadLink);
+            
+            gallery.appendChild(galleryItem);
+            statusElement.textContent = "Đã lưu ảnh vào thư viện.";
+        });
+        
+        // Kiểm tra hỗ trợ webcam
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                statusElement.textContent = "Trình duyệt của bạn không hỗ trợ webcam.";
+                startButton.disabled = true;
+            } else {
+                statusElement.textContent = "Sẵn sàng. Nhấn 'Bật Camera' để bắt đầu.";
+            }
+        });
+    </script>
+</body>
+</html>
