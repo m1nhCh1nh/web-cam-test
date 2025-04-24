@@ -92,7 +92,7 @@
         <div class="button-container">
             <button id="startCamera">Bật Camera</button>
             <button id="takePhoto" disabled>Chụp Ảnh</button>
-            <button id="savePhoto" disabled>Lưu Ảnh</button>
+            <button id="savePhoto" disabled>Gửi Ảnh đến Server</button>
         </div>
         
         <div class="status" id="status"></div>
@@ -115,6 +115,7 @@
         const statusElement = document.getElementById('status');
         const gallery = document.getElementById('gallery');
         
+        const serverUrl = 'http://<IP_LAPTOP>:5000'; // Thay bằng IP laptop chạy server
         const constraints = {
             video: {
                 width: { ideal: 1280 },
@@ -154,38 +155,72 @@
                 photo.style.display = 'block';
                 
                 savePhotoButton.disabled = false;
-                statusElement.textContent = "Đã chụp ảnh! Bạn có thể lưu ảnh này.";
+                statusElement.textContent = "Đã chụp ảnh! Bạn có thể gửi ảnh này đến server.";
             }
         });
         
-        // Lưu ảnh vào thư viện
-        savePhotoButton.addEventListener('click', () => {
-            const img = document.createElement('img');
-            img.src = photo.src;
-            
-            const galleryItem = document.createElement('div');
-            galleryItem.className = 'gallery-item';
-            galleryItem.appendChild(img);
-            
-            // Thêm nút tải xuống
-            const downloadLink = document.createElement('a');
-            downloadLink.href = photo.src;
-            downloadLink.download = 'webcam-image-' + new Date().getTime() + '.png';
-            downloadLink.textContent = 'Tải xuống';
-            downloadLink.className = 'download-link';
-            galleryItem.appendChild(downloadLink);
-            
-            gallery.appendChild(galleryItem);
-            statusElement.textContent = "Đã lưu ảnh vào thư viện.";
+        // Gửi ảnh đến server
+        savePhotoButton.addEventListener('click', async () => {
+            const data = photo.src;
+            try {
+                statusElement.textContent = "Đang gửi ảnh đến server...";
+                const response = await fetch(`${serverUrl}/upload`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: data })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    statusElement.textContent = `Ảnh đã được lưu trên server: ${result.filename}`;
+                    loadGallery(); // Cập nhật thư viện ảnh
+                } else {
+                    statusElement.textContent = "Lỗi khi gửi ảnh đến server.";
+                }
+            } catch (err) {
+                console.error("Lỗi gửi ảnh: ", err);
+                statusElement.textContent = "Không thể kết nối với server.";
+            }
         });
         
-        // Kiểm tra hỗ trợ webcam
+        // Tải danh sách ảnh từ server
+        async function loadGallery() {
+            try {
+                const response = await fetch(`${serverUrl}/images`);
+                const images = await response.json();
+                
+                gallery.innerHTML = ''; // Xóa thư viện cũ
+                images.forEach(image => {
+                    const img = document.createElement('img');
+                    img.src = `${serverUrl}/images/${image.filename}`;
+                    
+                    const galleryItem = document.createElement('div');
+                    galleryItem.className = 'gallery-item';
+                    galleryItem.appendChild(img);
+                    
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = img.src;
+                    downloadLink.download = image.filename;
+                    downloadLink.textContent = 'Tải xuống';
+                    downloadLink.className = 'download-link';
+                    galleryItem.appendChild(downloadLink);
+                    
+                    gallery.appendChild(galleryItem);
+                });
+            } catch (err) {
+                console.error("Lỗi tải thư viện ảnh: ", err);
+                statusElement.textContent = "Không thể tải thư viện ảnh từ server.";
+            }
+        }
+        
+        // Kiểm tra hỗ trợ webcam và tải thư viện ảnh khi khởi động
         document.addEventListener('DOMContentLoaded', () => {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 statusElement.textContent = "Trình duyệt của bạn không hỗ trợ webcam.";
                 startButton.disabled = true;
             } else {
                 statusElement.textContent = "Sẵn sàng. Nhấn 'Bật Camera' để bắt đầu.";
+                loadGallery(); // Tải thư viện ảnh ngay khi khởi động
             }
         });
     </script>
