@@ -92,7 +92,6 @@
         <div class="button-container">
             <button id="startCamera">Bật Camera</button>
             <button id="takePhoto" disabled>Chụp Ảnh</button>
-            <button id="savePhoto" disabled>Gửi Ảnh đến Server</button>
         </div>
         
         <div class="status" id="status"></div>
@@ -111,11 +110,10 @@
         const photo = document.getElementById('photo');
         const startButton = document.getElementById('startCamera');
         const takePhotoButton = document.getElementById('takePhoto');
-        const savePhotoButton = document.getElementById('savePhoto');
         const statusElement = document.getElementById('status');
         const gallery = document.getElementById('gallery');
         
-        const serverUrl = 'http://192.168.111.142:5000'; // Thay bằng IP laptop chạy server
+        const serverUrl = 'http://192.168.111.142:5000'; // IP của server
         const constraints = {
             video: {
                 width: { ideal: 1280 },
@@ -141,8 +139,8 @@
             }
         });
         
-        // Chụp ảnh
-        takePhotoButton.addEventListener('click', () => {
+        // Chụp và gửi ảnh tự động
+        takePhotoButton.addEventListener('click', async () => {
             if (stream) {
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
@@ -154,32 +152,26 @@
                 photo.setAttribute('src', data);
                 photo.style.display = 'block';
                 
-                savePhotoButton.disabled = false;
-                statusElement.textContent = "Đã chụp ảnh! Bạn có thể gửi ảnh này đến server.";
-            }
-        });
-        
-        // Gửi ảnh đến server
-        savePhotoButton.addEventListener('click', async () => {
-            const data = photo.src;
-            try {
+                // Gửi ảnh ngay lập tức
                 statusElement.textContent = "Đang gửi ảnh đến server...";
-                const response = await fetch(`${serverUrl}/upload`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image: data })
-                });
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    statusElement.textContent = `Ảnh đã được lưu trên server: ${result.filename}`;
-                    loadGallery(); // Cập nhật thư viện ảnh
-                } else {
-                    statusElement.textContent = "Lỗi khi gửi ảnh đến server.";
+                try {
+                    const response = await fetch(`${serverUrl}/upload`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image: data })
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        statusElement.textContent = `Ảnh đã được lưu: ${result.filename}`;
+                        loadGallery(); // Cập nhật thư viện ảnh
+                    } else {
+                        statusElement.textContent = `Lỗi: ${response.statusText}`;
+                    }
+                } catch (err) {
+                    console.error("Lỗi gửi ảnh: ", err);
+                    statusElement.textContent = `Lỗi kết nối: ${err.message}`;
                 }
-            } catch (err) {
-                console.error("Lỗi gửi ảnh: ", err);
-                statusElement.textContent = "Không thể kết nối với server.";
             }
         });
         
@@ -213,15 +205,15 @@
             }
         }
         
-        // Kiểm tra hỗ trợ webcam và tải thư viện ảnh khi khởi động
+        // Tải thư viện ảnh khi khởi động
         document.addEventListener('DOMContentLoaded', () => {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                statusElement.textContent = "Trình duyệt của bạn không hỗ trợ webcam.";
+                statusElement.textContent = "Trình duyệt không hỗ trợ webcam.";
                 startButton.disabled = true;
             } else {
                 statusElement.textContent = "Sẵn sàng. Nhấn 'Bật Camera' để bắt đầu.";
-                loadGallery(); // Tải thư viện ảnh ngay khi khởi động
             }
+            loadGallery(); // Tải thư viện ảnh ngay khi khởi động
         });
     </script>
 </body>
